@@ -1,0 +1,150 @@
+
+
+local ppl							= game:GetService("Players")
+local run							= game:GetService("RunService")
+local uis							= game:GetService("UserInputService")
+local plr							= ppl.LocalPlayer
+local char							= plr.Character or plr.CharacterAdded:Wait()
+local hum							= char:WaitForChild("Humanoid")
+local root							= char:WaitForChild("HumanoidRootPart")
+local params						= RaycastParams.new()
+params.FilterDescendantsInstances	= {char}
+params.FilterType					= Enum.RaycastFilterType.Blacklist
+params.IgnoreWater					= true
+params.CollisionGroup				= ("canClimb")
+local attach						= Instance.new("Attachment")
+attach.Parent						= root
+local move							= Instance.new("LinearVelocity")
+move.Enabled						= false
+move.MaxForce						= math.huge
+move.Attachment0					= attach
+move.RelativeTo						= Enum.ActuatorRelativeTo.Attachment0
+move.VectorVelocity					= Vector3.new()
+move.Parent							= root
+local gyro							= Instance.new("AlignOrientation")
+gyro.Enabled						= false
+gyro.Mode							= Enum.OrientationAlignmentMode.OneAttachment
+gyro.RigidityEnabled				= true
+gyro.Attachment0					= attach
+gyro.Parent							= root
+
+local result
+
+local XAxis = {
+	0; 
+	0 
+}
+local YAxis = {
+	0; 
+	0
+}
+
+
+
+ function down(KEY)
+	return uis:IsKeyDown(Enum.KeyCode[KEY])
+end
+
+hum:GetAttributeChangedSignal("ClimbState"):Connect(function()
+	if hum:GetAttribute("ClimbState") == true then
+		local origin = root.Position
+		local direction = root.CFrame.LookVector
+
+		result = workspace:Raycast(origin, direction, params)
+
+		if result then
+			hum.AutoRotate=false
+			hum.PlatformStand=true
+			gyro.CFrame=CFrame.lookAt(result.Position+(result.Normal/2), result.Position)
+			move.Enabled=true
+			gyro.Enabled=true
+		end
+	else
+		hum.AutoRotate=true
+		hum.PlatformStand=false
+		move.Enabled=false
+		gyro.Enabled=false
+		result=nil
+	end
+end)
+
+
+run.Heartbeat:Connect(function()
+	if hum:GetAttribute("ClimbState") == true then
+		
+		
+		if root.Position.Y >= result.Instance.Position.Y + result.Instance.Size.Y/2 then
+			hum:SetAttribute("ClimbState", false) 
+			root.CFrame += root.CFrame.LookVector+root.CFrame.UpVector*2
+		end
+		
+		
+		local sideOrigin = root.Position + root.CFrame.LookVector
+		local sideDirection = (down("D") and -root.CFrame.RightVector) or root.CFrame.RightVector
+		
+		local hit = workspace:Raycast(sideOrigin, sideDirection, params)
+		if hit then
+			gyro.CFrame = CFrame.lookAt(hit.Position+(hit.Normal/2), hit.Position)
+			root.CFrame = CFrame.lookAt(hit.Position+(hit.Normal/2), hit.Position)
+		end
+	end
+end)
+
+
+do
+	local inputTask = {
+		[Enum.KeyCode.W] = function(state: boolean)
+			YAxis[1] = (state and 1) or 0
+		end;
+
+		[Enum.KeyCode.S] = function(state: boolean)
+			YAxis[2] = (state and 1) or 0
+		end;
+
+		[Enum.KeyCode.A] = function(state: boolean)
+			XAxis[1] = (state and 1) or 0
+		end;
+
+		[Enum.KeyCode.D] = function(state: boolean)
+			XAxis[2] = (state and 1) or 0
+		end;
+
+		[Enum.KeyCode.F] = function(state: boolean)
+			if state then
+				if hum:GetAttribute("ClimbState") == false then
+					hum:SetAttribute("ClimbState", true)
+				else
+					hum:SetAttribute("ClimbState", false)
+				end
+			end
+		end;
+	}
+	
+	
+	
+	
+	uis.InputBegan:Connect(function(input: InputObject)
+		if inputTask[input.KeyCode] then
+			inputTask[input.KeyCode](true)
+		end
+	end)
+	
+	
+	
+	uis.InputEnded:Connect(function(input: InputObject)
+		if inputTask[input.KeyCode] then
+			inputTask[input.KeyCode](false)
+		end
+	end)
+end
+
+run:BindToRenderStep("constraints update", Enum.RenderPriority.Character.Value, function()
+	if hum:GetAttribute("ClimbState") == true then
+		local X = XAxis[2]-XAxis[1]
+		local Y = YAxis[1]-YAxis[2]
+		local spd = hum:GetAttribute("ClimbSpeed")
+		
+		move.VectorVelocity=Vector3.new(X*spd, Y*spd, 0)
+	end
+end)
+
