@@ -109,7 +109,7 @@ do
 			XAxis[2] = (state and 1) or 0
 		end;
 
-		[Enum.KeyCode.F] = function(state: boolean)
+		[Enum.KeyCode.E] = function(state: boolean)
 			if state then
 				if hum:GetAttribute("ClimbState") == false then
 					hum:SetAttribute("ClimbState", true)
